@@ -56,6 +56,8 @@ pub mod flash;
 #[cfg(feature = "device-selected")]
 pub mod gpio;
 #[cfg(feature = "device-selected")]
+pub mod exti;
+#[cfg(feature = "device-selected")]
 pub mod i2c;
 #[cfg(feature = "device-selected")]
 pub mod prelude;
