@@ -1,6 +1,6 @@
-use crate::stm32::{RTC, rcc, RCC, PWR};
-use crate::time::{Date, Time, U32Ext};
 use crate::rcc::Rcc;
+use crate::stm32::{rcc, PWR, RCC, RTC};
+use crate::time::{Date, Time, U32Ext};
 
 // use crate::time::Hertz;
 //use nb;
@@ -22,24 +22,23 @@ impl Rtc {
     Initializes the RTC
      **/
     // Sets default clock source to LSI, since LSE is not included on STM32f3 discovery boards
-    pub fn rtc (regs: RTC, src: RTCSrc, rcc: &mut Rcc) -> Self {
-        let mut result = Rtc {
-            regs,
-        };
+    pub fn rtc(regs: RTC, src: RTCSrc, rcc: &mut Rcc) -> Self {
+        let mut result = Rtc { regs };
 
         rcc.enable_rtc(&src);
 
-        result.regs.cr.modify(|_ , w| {
-            w   
+        result.regs.cr.modify(|_, w| {
+            w
                 // sets hour format to 24 hours
-                .fmt().clear_bit()
+                .fmt()
+                .clear_bit()
         });
 
         // Prescalers set to produce a 1 hz signal
         let (prediv_s, prediv_a) = match src {
             RTCSrc::LSI => (311_u32, 127_u32),
-            RTCSrc::HSE => (62992_u32,127_u32),
-            RTCSrc::LSE => (255_u32, 127_u32)
+            RTCSrc::HSE => (62992_u32, 127_u32),
+            RTCSrc::LSE => (255_u32, 127_u32),
         };
 
         let raw_bits: u32 = prediv_s | (prediv_a << 16);
@@ -55,19 +54,25 @@ impl Rtc {
         let (st, su) = bcd2_encode(time.seconds);
         self.modify(|regs| {
             regs.tr.write(|w| unsafe {
-                w
-                    .ht().bits(ht)
-                    .hu().bits(hu)
-                    .mnt().bits(mnt)
-                    .mnu().bits(mnu)
-                    .st().bits(st)
-                    .su().bits(su)
-                    .pm().clear_bit()
+                w.ht()
+                    .bits(ht)
+                    .hu()
+                    .bits(hu)
+                    .mnt()
+                    .bits(mnt)
+                    .mnu()
+                    .bits(mnu)
+                    .st()
+                    .bits(st)
+                    .su()
+                    .bits(su)
+                    .pm()
+                    .clear_bit()
             });
             regs.cr.modify(|_, w| w.fmt().bit(time.daylight_savings));
         });
     }
-    
+
     pub fn set_date(&mut self, date: &Date) {
         let (yt, yu) = bcd2_encode(date.year - 1970);
         let (mt, mu) = bcd2_encode(date.month);
@@ -75,14 +80,20 @@ impl Rtc {
 
         self.modify(|regs| {
             regs.dr.write(|w| unsafe {
-                w
-                    .dt().bits(dt)
-                    .du().bits(du)
-                    .mt().bit(mt > 0)
-                    .mu().bits(mu)
-                    .yt().bits(yt)
-                    .yu().bits(yu)
-                    .wdu().bits(date.day as u8)
+                w.dt()
+                    .bits(dt)
+                    .du()
+                    .bits(du)
+                    .mt()
+                    .bit(mt > 0)
+                    .mu()
+                    .bits(mu)
+                    .yt()
+                    .bits(yt)
+                    .yu()
+                    .bits(yu)
+                    .wdu()
+                    .bits(date.day as u8)
             });
         });
     }
@@ -120,22 +131,21 @@ impl Rtc {
     pub fn enable_wut(&mut self, clocksrc: u8) {
         // Reset RTC_WUTR
 
-
         let wute = self.regs.cr.read();
         if !wute.wute().bit_is_clear() {
-            self.regs.cr.write( |w| w.wute().clear_bit() );
+            self.regs.cr.write(|w| w.wute().clear_bit());
         }
         let wutwf = self.regs.isr.read();
         // wait
-        while wutwf.wutwf().bit_is_clear() {};
+        while wutwf.wutwf().bit_is_clear() {}
         self.regs.isr.write(|w| w.wutf().clear_bit());
         // Set clock source for Wakeup Timer
         // temporarily enable interrupt for WUT
         self.modify(|regs| {
             regs.wutr.write(|w| unsafe { w.wut().bits(0x0001) });
             regs.cr.write(|w| unsafe { w.wcksel().bits(clocksrc) });
-            regs.cr.write( |w| w.wute().set_bit() );
-            regs.cr.write(|w| w.wutie().set_bit() );
+            regs.cr.write(|w| w.wute().set_bit());
+            regs.cr.write(|w| w.wutie().set_bit());
         });
         // Enable Wakeup Timer
         // self.regs.cr.write( |w| w.wute().set_bit() );
@@ -143,7 +153,8 @@ impl Rtc {
 
     fn modify<F>(&mut self, mut closure: F)
     where
-        F: FnMut(&mut RTC) -> (), {
+        F: FnMut(&mut RTC) -> (),
+    {
         // Disable write protection
         self.regs.wpr.write(|w| unsafe { w.bits(0xCA) });
         self.regs.wpr.write(|w| unsafe { w.bits(0x53) });
@@ -158,7 +169,7 @@ impl Rtc {
         // Exit init mode
         self.regs.isr.write(|w| w.init().clear_bit());
         // wait for last write to be done
-        while !self.regs.isr.read().initf().bit_is_clear() {};
+        while !self.regs.isr.read().initf().bit_is_clear() {}
         //Locks write protect
         self.regs.wpr.write(|w| unsafe { w.bits(0xFF) });
     }
@@ -173,7 +184,7 @@ pub enum RTCSrc {
 }
 
 pub trait RtcExt {
-    fn constrain (self, rcc: &mut Rcc) -> Rtc; 
+    fn constrain(self, rcc: &mut Rcc) -> Rtc;
 }
 
 impl RtcExt for RTC {

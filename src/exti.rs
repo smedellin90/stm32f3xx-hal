@@ -7,7 +7,6 @@ pub enum TriggerEdge {
     Both,
 }
 
-
 pub struct Exti {
     regs: EXTI,
 }
@@ -24,7 +23,7 @@ impl Exti {
     }
 
     /// Starts listening on a configurable interrupt line
-    /// 
+    ///
     /// The edges that should trigger the interrupt can be configured with 'edge'
     pub fn listen_configurable(&mut self, line: ConfigurableLine, edge: TriggerEdge) {
         let bm: u32 = 1 << line.raw_line();
@@ -150,7 +149,7 @@ pub enum ConfigurableLine {
     Comp3 = 29,
 }
 
-impl ExtiLine for ConfigurableLine  {
+impl ExtiLine for ConfigurableLine {
     fn from_raw_line(line: u8) -> Option<Self> {
         use ConfigurableLine::*;
 
